@@ -299,9 +299,9 @@
         // -----------------------
         // 2. AI & APP CONFIG
         // -----------------------
-        const MODEL_URL = "https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${API_KEY}";
         const MODEL_NAME = "gemini-2.5-flash";
-        const API_KEY = "AQ.Ab8RN6JSaMveeWvMqA38eMILRBx--_IUYrbT4zqav2M9cotmHA";
+        const API_KEY = "YOUR_KEY_HERE";
+        const MODEL_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${API_KEY}`;
         
         const STAT_CONFIG = {
             knowledge: { name: 'Knowledge', icon: 'fa-brain', color: '#3b82f6', ranks: ['Unlearned', 'Scholarly', 'Mighty', 'Encyclopedia', 'Erudite'] },
@@ -558,9 +558,9 @@
     if (!input) return alert("Please describe a task first!");
 
     // Validate key
-    if (!API_KEY || API_KEY === "AQ.Ab8RN6JSaMveeWvMqA38eMILRBx--_IUYrbT4zqav2M9cotmHA" || API_KEY.trim() === "") {
-        return alert("Please set a valid Google AI Studio API_KEY in index.html!");
-    }
+   if (!API_KEY || API_KEY === "AQ.Ab8RN6JSaMveeWvMqA38eMILRBx--_IUYrbT4zqav2M9cotmHA") {
+    return alert("Please set a valid Google AI Studio API_KEY in index.html!");
+}
 
     showP5Loader("ANALYZING METAVERSE COGNITION...");
 

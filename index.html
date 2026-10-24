@@ -300,7 +300,7 @@
         // 2. AI & APP CONFIG
         // -----------------------
         const MODEL_URL = "https://openrouter.ai/api/v1/chat/completions";
-        const OPENROUTER_API_KEY = "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";
+        const OPENROUTER_API_KEY = "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";
         
         const STAT_CONFIG = {
             knowledge: { name: 'Knowledge', icon: 'fa-brain', color: '#3b82f6', ranks: ['Unlearned', 'Scholarly', 'Mighty', 'Encyclopedia', 'Erudite'] },
@@ -551,7 +551,7 @@
             });
         }
 
-      async function evaluateTask() {
+     async function evaluateTask() {
     const inputField = document.getElementById('task-input');
     const input = inputField.value.trim();
     if (!input) return alert("Please describe a task first!");
@@ -563,12 +563,13 @@
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-                "HTTP-Referer": window.location.href,
+                "Authorization": `Bearer ${OPENROUTER_API_KEY.trim()}`,
+                "HTTP-Referer": window.location.origin,
                 "X-Title": "Phantom Tracker"
             },
             body: JSON.stringify({
-                model: "openrouter/free",
+                // Changed AI Model to Gemini Flash (Free Tier)
+                model: "google/gemini-3.5-flash:free",
                 messages: [
                     { 
                         role: "system", 
@@ -595,7 +596,6 @@
             parsed = JSON.parse(rawContent);
         } catch (jsonErr) {
             console.warn("AI returned non-JSON text, using fallback parser:", rawContent);
-            // Intelligent fallback based on keywords
             let defaultBoosts = { knowledge: 1, guts: 0, proficiency: 0, kindness: 0, charm: 0 };
             const lower = input.toLowerCase();
             if (lower.includes('movie') || lower.includes('date') || lower.includes('hangout')) {
@@ -606,7 +606,6 @@
             parsed = { taskName: input, boosts: defaultBoosts };
         }
         
-        // Cap any excessive AI values between 1 and 3 to keep the game balanced
         if (parsed.boosts) {
             Object.keys(parsed.boosts).forEach(stat => {
                 if (parsed.boosts[stat] > 3) parsed.boosts[stat] = 3;

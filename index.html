@@ -271,7 +271,7 @@
     </div>
 
     <!-- Background music. -->
-    <audio id="bg-music" loop preload="auto" src="audio/beneath-the-mask.mp3"></audio>
+    <audio id="bg-music" loop preload="auto" src="./audio/beneath-the-mask.mp3"></audio>
 
     <script>
         let p5LoaderShownAt = Date.now();
@@ -299,8 +299,9 @@
         // -----------------------
         // 2. AI & APP CONFIG
         // -----------------------
-        const MODEL_URL = "https://openrouter.ai/api/v1/chat/completions";
-        const OPENROUTER_API_KEY = "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";
+        const MODEL_URL = "https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${API_KEY}";
+        const MODEL_NAME = "gemini-2.5-flash";
+        const API_KEY = "AQ.Ab8RN6JSaMveeWvMqA38eMILRBx--_IUYrbT4zqav2M9cotmHA";
         
         const STAT_CONFIG = {
             knowledge: { name: 'Knowledge', icon: 'fa-brain', color: '#3b82f6', ranks: ['Unlearned', 'Scholarly', 'Mighty', 'Encyclopedia', 'Erudite'] },
@@ -551,10 +552,15 @@
             });
         }
 
-     async function evaluateTask() {
+ async function evaluateTask() {
     const inputField = document.getElementById('task-input');
     const input = inputField.value.trim();
     if (!input) return alert("Please describe a task first!");
+
+    // Validate key
+    if (!API_KEY || API_KEY === "AQ.Ab8RN6JSaMveeWvMqA38eMILRBx--_IUYrbT4zqav2M9cotmHA" || API_KEY.trim() === "") {
+        return alert("Please set a valid Google AI Studio API_KEY in index.html!");
+    }
 
     showP5Loader("ANALYZING METAVERSE COGNITION...");
 
@@ -562,23 +568,26 @@
         const response = await fetch(MODEL_URL, {
             method: "POST",
             headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${OPENROUTER_API_KEY.trim()}`,
-                "HTTP-Referer": window.location.origin,
-                "X-Title": "Phantom Tracker"
+                "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                // Changed AI Model to Gemini Flash (Free Tier)
-                model: "google/gemini-3.5-flash:free",
-                messages: [
-                    { 
-                        role: "system", 
-                        content: "You are an AI that strictly outputs valid JSON matching this exact format: {\"taskName\": \"string\", \"boosts\": {\"knowledge\": 0, \"charm\": 0, \"proficiency\": 0, \"guts\": 0, \"kindness\": 0}}. Assign integer boost values between 1 and 3 only for stats that fit the task, and 0 for others. Do not include any markdown formatting like ```json or conversational text." 
-                    },
-                    { role: "user", content: input }
+                contents: [
+                    {
+                        parts: [
+                            {
+                                text: `You are an AI that strictly evaluates tasks for a Persona 5 tracker.
+                                Evaluate this user task: "${input}"
+                                Return a valid JSON object matching this exact format:
+                                {"taskName": "string", "boosts": {"knowledge": 0, "charm": 0, "proficiency": 0, "guts": 0, "kindness": 0}}
+                                Assign integer boost values between 1 and 3 only for stats that fit the task, and 0 for others. Do not include markdown formatting or prose.`
+                            }
+                        ]
+                    }
                 ],
-                temperature: 0.1,
-                stream: false
+                generationConfig: {
+                    temperature: 0.1,
+                    responseMimeType: "application/json"
+                }
             })
         });
 
@@ -588,8 +597,8 @@
             throw new Error(data.error.message || JSON.stringify(data.error));
         }
 
-        let rawContent = data.choices[0].message.content;
-        rawContent = rawContent.replace(/```json/g, '').replace(/```/g, '').trim();
+        // Extract response text from Google AI Studio response format
+        let rawContent = data.candidates[0].content.parts[0].text.trim();
         
         let parsed;
         try {

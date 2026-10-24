@@ -300,7 +300,7 @@
         // 2. AI & APP CONFIG
         // -----------------------
         const MODEL_NAME = "gemini-3.8-flash";
-        const API_KEY = "AQ.Ab8RN6JSaMveeWvMqA38eMILRBx--_IUYrbT4zqav2M9cotmHA";
+        const API_KEY = "AQ.Ab8RN6It9Pzgdph77RxtVMB_WoOhXf9FMRH0toIHNBHlycGzzg";
         const MODEL_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent`;
         
         const STAT_CONFIG = {
@@ -557,18 +557,17 @@
     const input = inputField.value.trim();
     if (!input) return alert("Please describe a task first!");
 
-    // Validate key
-   if (!API_KEY || API_KEY === "AQ.Ab8RN6JSaMveeWvMqA38eMILRBx--_IUYrbT4zqav2M9cotmHA") {
-    return alert("Please set a valid Google AI Studio API_KEY in index.html!");
-}
+   
 
     showP5Loader("ANALYZING METAVERSE COGNITION...");
 
     try {
         const response = await fetch(MODEL_URL, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json"
+            headers: 
+            {
+                 "Content-Type": "application/json",
+                 "x-goog-api-key": API_KEY
             },
             body: JSON.stringify({
                 contents: [

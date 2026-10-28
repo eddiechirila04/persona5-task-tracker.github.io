@@ -122,7 +122,7 @@
                 <div>
                     <h1 class="p5-font-impact text-2xl text-white tracking-widest uppercase italic">PHANTOM <span class="text-red-600">TRACKER</span></h1>
                     <div class="text-xs text-gray-400 font-bold uppercase tracking-wider flex items-center gap-2">
-                        <span>CODE: <span id="phantom-alias" class="text-yellow-400 underline cursor-pointer" title="Sync your account before changing your code name" onclick="changeAlias()">JOKER</span></span>
+                        <span>CODE: <span id="phantom-alias" class="text-yellow-400 underline cursor-pointer" onclick="changeAlias()">JOKER</span></span>
                         <span class="text-red-600">★</span>
                         <span id="streak-counter" class="text-white">STREAK: 0 DAYS</span>
                     </div>
@@ -295,8 +295,6 @@
         const auth = firebase.auth();
         const provider = new firebase.auth.GoogleAuthProvider();
         let currentUser = null;
-        // True only after the signed-in user's Firestore record has been read or initialized successfully.
-        let isFirebaseSynced = false;
 
         // -----------------------
         // 2. AI & APP CONFIG
@@ -392,48 +390,32 @@
         // -----------------------
         // 3. AUTHENTICATION FLOW
         // -----------------------
-        auth.onAuthStateChanged(async user => {
+        auth.onAuthStateChanged(user => {
             const authBtn = document.getElementById('auth-btn');
             if (user) {
                 currentUser = user;
-                isFirebaseSynced = false;
-                authBtn.innerText = 'SYNCING...';
+                authBtn.innerText = 'LOGGED IN';
                 authBtn.classList.replace('text-blue-500', 'text-green-400');
                 authBtn.classList.replace('border-blue-600', 'border-green-500');
                 authBtn.classList.replace('hover:bg-blue-600', 'hover:bg-green-600');
-
+                
                 showP5Loader("SYNCING COGNITIVE DATA...");
-                try {
-                    const userDocRef = db.collection('users').doc(user.uid);
-                    const doc = await userDocRef.get();
+                db.collection('users').doc(user.uid).get().then(doc => {
                     if (doc.exists) {
                         state = doc.data();
                     } else {
-                        // A first-time account is not considered synced until its initial record is saved.
-                        await userDocRef.set(state);
+                        saveState();
                     }
-
-                    localStorage.setItem('p5_tracker_state_v2', JSON.stringify(state));
-                    isFirebaseSynced = true;
-                    authBtn.innerText = 'LOGGED IN / SYNCED';
                     updateUI();
-                } catch (err) {
-                    isFirebaseSynced = false;
-                    authBtn.innerText = 'SYNC FAILED';
-                    console.error("Firebase initial sync failed:", err);
-                    alert("Firebase sync failed. Your code name is locked until your account syncs successfully.");
-                    updateUI();
-                } finally {
                     hideP5Loader();
-                }
+                }).catch(() => hideP5Loader());
             } else {
                 currentUser = null;
-                isFirebaseSynced = false;
                 authBtn.innerText = 'SYNC (LOGIN)';
                 authBtn.classList.replace('text-green-400', 'text-blue-500');
                 authBtn.classList.replace('border-green-500', 'border-blue-600');
                 authBtn.classList.replace('hover:bg-green-600', 'hover:bg-blue-600');
-
+                
                 state = JSON.parse(localStorage.getItem('p5_tracker_state_v2')) || defaultState;
                 updateUI();
             }
@@ -450,21 +432,12 @@
         // -----------------------
         // 4. CORE APP LOGIC
         // -----------------------
-        function saveState() {
-            localStorage.setItem('p5_tracker_state_v2', JSON.stringify(state));
-
-            // Do not write local state over the cloud record until the initial account sync is complete.
-            if (currentUser && isFirebaseSynced) {
-                const uid = currentUser.uid;
-                return db.collection('users').doc(uid).set(state)
-                    .then(() => true)
-                    .catch(err => {
-                        if (currentUser && currentUser.uid === uid) isFirebaseSynced = false;
-                        console.error("Firebase sync error:", err);
-                        return false;
-                    });
+        function saveState() { 
+            localStorage.setItem('p5_tracker_state_v2', JSON.stringify(state)); 
+            if (currentUser) {
+                db.collection('users').doc(currentUser.uid).set(state)
+                  .catch(err => console.error("Firebase sync error:", err));
             }
-            return Promise.resolve(false);
         }
 
         function resetDataPrompt() {
@@ -895,50 +868,7 @@ Assign integer boost values between 1 and 3 only for stats that fit the task, an
             });
         }
 
-        // Code names can only be changed after the active account has successfully synced with Firestore.
-        async function changeAlias() {
-            if (!currentUser || !isFirebaseSynced) {
-                alert('Sync your account with Firebase first. Sign in and wait for the account sync to finish before changing your code name.');
-                return;
-            }
-
-            const userId = currentUser.uid;
-            const currentAlias = state.alias || 'JOKER';
-            const enteredAlias = prompt('Enter your Phantom Thief code name:', currentAlias);
-
-            // Cancel keeps the existing name unchanged.
-            if (enteredAlias === null) return;
-
-            const newAlias = enteredAlias.trim();
-            if (!newAlias) {
-                alert('Please enter a code name.');
-                return;
-            }
-
-            // Re-check the session after the prompt before writing to Firebase.
-            if (!currentUser || currentUser.uid !== userId || !isFirebaseSynced) {
-                alert('Your Firebase account is no longer synced. Please sync again before changing your code name.');
-                return;
-            }
-
-            const updatedState = { ...state, alias: newAlias.toUpperCase() };
-            try {
-                await db.collection('users').doc(userId).set(updatedState);
-                if (currentUser && currentUser.uid === userId) {
-                    state = updatedState;
-                    localStorage.setItem('p5_tracker_state_v2', JSON.stringify(state));
-                    document.getElementById('phantom-alias').textContent = state.alias;
-                }
-            } catch (err) {
-                console.error('Could not save code name to Firebase:', err);
-                alert('Could not save your code name to Firebase. Your previous code name has been kept. Please check your connection and try again.');
-            }
-        }
-
         function updateUI() {
-            const aliasElement = document.getElementById('phantom-alias');
-            if (aliasElement) aliasElement.textContent = state.alias || 'JOKER';
-
             renderStats();
             renderTasks();
             renderBadges();

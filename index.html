@@ -392,47 +392,32 @@
         // -----------------------
         // 3. AUTHENTICATION FLOW
         // -----------------------
-        auth.onAuthStateChanged(async user => {
+        auth.onAuthStateChanged(user => {
             const authBtn = document.getElementById('auth-btn');
             if (user) {
                 currentUser = user;
-                isFirebaseSynced = false;
-                authBtn.innerText = 'SYNCING...';
+                authBtn.innerText = 'LOGGED IN';
                 authBtn.classList.replace('text-blue-500', 'text-green-400');
                 authBtn.classList.replace('border-blue-600', 'border-green-500');
                 authBtn.classList.replace('hover:bg-blue-600', 'hover:bg-green-600');
-
+                
                 showP5Loader("SYNCING COGNITIVE DATA...");
-                try {
-                    const userDocRef = db.collection('users').doc(user.uid);
-                    const doc = await userDocRef.get();
+                db.collection('users').doc(user.uid).get().then(doc => {
                     if (doc.exists) {
                         state = doc.data();
                     } else {
-                        // A first-time account is not considered synced until its initial record is saved.
-                        await userDocRef.set(state);
+                        saveState();
                     }
-
-                    localStorage.setItem('p5_tracker_state_v2', JSON.stringify(state));
-                    isFirebaseSynced = true;
-                    authBtn.innerText = 'LOGGED IN / SYNCED';
                     updateUI();
-                } catch (err) {
-                    isFirebaseSynced = false;
-                    authBtn.innerText = 'SYNC FAILED';
-                    console.error("Firebase initial sync failed:", err);
-                    updateUI();
-                } finally {
                     hideP5Loader();
-                }
+                }).catch(() => hideP5Loader());
             } else {
                 currentUser = null;
-                isFirebaseSynced = false;
                 authBtn.innerText = 'SYNC (LOGIN)';
                 authBtn.classList.replace('text-green-400', 'text-blue-500');
                 authBtn.classList.replace('border-green-500', 'border-blue-600');
                 authBtn.classList.replace('hover:bg-green-600', 'hover:bg-blue-600');
-
+                
                 state = JSON.parse(localStorage.getItem('p5_tracker_state_v2')) || defaultState;
                 updateUI();
             }
@@ -445,7 +430,6 @@
                 auth.signInWithPopup(provider).catch(err => alert("Login failed: " + err.message));
             }
         }
-
         // -----------------------
         // 4. CORE APP LOGIC
         // -----------------------

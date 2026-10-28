@@ -421,7 +421,6 @@
                     isFirebaseSynced = false;
                     authBtn.innerText = 'SYNC FAILED';
                     console.error("Firebase initial sync failed:", err);
-                    alert("Firebase sync failed. Your code name is locked until your account syncs successfully.");
                     updateUI();
                 } finally {
                     hideP5Loader();

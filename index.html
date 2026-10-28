@@ -868,7 +868,29 @@ Assign integer boost values between 1 and 3 only for stats that fit the task, an
             });
         }
 
+        // Let the user choose and save their own Phantom Thief code name.
+        function changeAlias() {
+            const currentAlias = state.alias || 'JOKER';
+            const enteredAlias = prompt('Enter your Phantom Thief code name:', currentAlias);
+
+            // Cancel keeps the existing name unchanged.
+            if (enteredAlias === null) return;
+
+            const newAlias = enteredAlias.trim();
+            if (!newAlias) {
+                alert('Please enter a code name.');
+                return;
+            }
+
+            state.alias = newAlias.toUpperCase();
+            document.getElementById('phantom-alias').textContent = state.alias;
+            saveState();
+        }
+
         function updateUI() {
+            const aliasElement = document.getElementById('phantom-alias');
+            if (aliasElement) aliasElement.textContent = state.alias || 'JOKER';
+
             renderStats();
             renderTasks();
             renderBadges();

@@ -122,7 +122,7 @@
                 <div>
                     <h1 class="p5-font-impact text-2xl text-white tracking-widest uppercase italic">PHANTOM <span class="text-red-600">TRACKER</span></h1>
                     <div class="text-xs text-gray-400 font-bold uppercase tracking-wider flex items-center gap-2">
-                        <span>CODE: <span id="phantom-alias" class="text-yellow-400 underline cursor-pointer" onclick="changeAlias()">JOKER</span></span>
+                        <span>CODE: <span id="phantom-alias" class="text-yellow-400 underline cursor-pointer" title="Change your Phantom Thief code name" onclick="changeAlias()">JOKER</span></span>
                         <span class="text-red-600">★</span>
                         <span id="streak-counter" class="text-white">STREAK: 0 DAYS</span>
                     </div>
@@ -295,6 +295,8 @@
         const auth = firebase.auth();
         const provider = new firebase.auth.GoogleAuthProvider();
         let currentUser = null;
+        // True only after the signed-in user's Firestore record has been read or initialized successfully.
+        let isFirebaseSynced = false;
 
         // -----------------------
         // 2. AI & APP CONFIG
@@ -390,32 +392,48 @@
         // -----------------------
         // 3. AUTHENTICATION FLOW
         // -----------------------
-        auth.onAuthStateChanged(user => {
+        auth.onAuthStateChanged(async user => {
             const authBtn = document.getElementById('auth-btn');
             if (user) {
                 currentUser = user;
-                authBtn.innerText = 'LOGGED IN';
+                isFirebaseSynced = false;
+                authBtn.innerText = 'SYNCING...';
                 authBtn.classList.replace('text-blue-500', 'text-green-400');
                 authBtn.classList.replace('border-blue-600', 'border-green-500');
                 authBtn.classList.replace('hover:bg-blue-600', 'hover:bg-green-600');
-                
+
                 showP5Loader("SYNCING COGNITIVE DATA...");
-                db.collection('users').doc(user.uid).get().then(doc => {
+                try {
+                    const userDocRef = db.collection('users').doc(user.uid);
+                    const doc = await userDocRef.get();
                     if (doc.exists) {
                         state = doc.data();
                     } else {
-                        saveState();
+                        // A first-time account is not considered synced until its initial record is saved.
+                        await userDocRef.set(state);
                     }
+
+                    localStorage.setItem('p5_tracker_state_v2', JSON.stringify(state));
+                    isFirebaseSynced = true;
+                    authBtn.innerText = 'LOGGED IN / SYNCED';
                     updateUI();
+                } catch (err) {
+                    isFirebaseSynced = false;
+                    authBtn.innerText = 'SYNC FAILED';
+                    console.error("Firebase initial sync failed:", err);
+                    alert("Firebase sync failed. Your code name is locked until your account syncs successfully.");
+                    updateUI();
+                } finally {
                     hideP5Loader();
-                }).catch(() => hideP5Loader());
+                }
             } else {
                 currentUser = null;
+                isFirebaseSynced = false;
                 authBtn.innerText = 'SYNC (LOGIN)';
                 authBtn.classList.replace('text-green-400', 'text-blue-500');
                 authBtn.classList.replace('border-green-500', 'border-blue-600');
                 authBtn.classList.replace('hover:bg-green-600', 'hover:bg-blue-600');
-                
+
                 state = JSON.parse(localStorage.getItem('p5_tracker_state_v2')) || defaultState;
                 updateUI();
             }
@@ -432,12 +450,21 @@
         // -----------------------
         // 4. CORE APP LOGIC
         // -----------------------
-        function saveState() { 
-            localStorage.setItem('p5_tracker_state_v2', JSON.stringify(state)); 
-            if (currentUser) {
-                db.collection('users').doc(currentUser.uid).set(state)
-                  .catch(err => console.error("Firebase sync error:", err));
+        function saveState() {
+            localStorage.setItem('p5_tracker_state_v2', JSON.stringify(state));
+
+            // Do not write local state over the cloud record until the initial account sync is complete.
+            if (currentUser && isFirebaseSynced) {
+                const uid = currentUser.uid;
+                return db.collection('users').doc(uid).set(state)
+                    .then(() => true)
+                    .catch(err => {
+                        if (currentUser && currentUser.uid === uid) isFirebaseSynced = false;
+                        console.error("Firebase sync error:", err);
+                        return false;
+                    });
             }
+            return Promise.resolve(false);
         }
 
         function resetDataPrompt() {
@@ -868,7 +895,39 @@ Assign integer boost values between 1 and 3 only for stats that fit the task, an
             });
         }
 
+        // Change the code name locally without requiring Firebase authentication or sync.
+        function changeAlias() {
+            const currentAlias = state.alias || 'JOKER';
+            const enteredAlias = prompt('Enter your Phantom Thief code name:', currentAlias);
+
+            // Cancel keeps the existing name unchanged.
+            if (enteredAlias === null) return;
+
+            const newAlias = enteredAlias.trim();
+            if (!newAlias) {
+                alert('Please enter a code name.');
+                return;
+            }
+
+            state.alias = newAlias.toUpperCase();
+            localStorage.setItem('p5_tracker_state_v2', JSON.stringify(state));
+            document.getElementById('phantom-alias').textContent = state.alias;
+
+            // If already synced, save the change to Firebase too.
+            // A Firebase failure does not block changing the name locally.
+            if (currentUser) {
+                db.collection('users').doc(currentUser.uid).set(state)
+                    .catch(err => {
+                        console.error('Could not sync code name to Firebase:', err);
+                        alert('Your code name was changed on this device, but could not be saved to Firebase. It will remain local until syncing works again.');
+                    });
+            }
+        }
+
         function updateUI() {
+            const aliasElement = document.getElementById('phantom-alias');
+            if (aliasElement) aliasElement.textContent = state.alias || 'JOKER';
+
             renderStats();
             renderTasks();
             renderBadges();

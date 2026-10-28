@@ -299,9 +299,9 @@
         // -----------------------
         // 2. AI & APP CONFIG
         // -----------------------
-        const MODEL_NAME = "gemini-2.5-flash";
-        const API_KEY = "AQ.Ab8RN6JmL0un9IkuqEiHzdTUnHUd42PUhDyfgY-PWXNt9XN-Kg";
-        const MODEL_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent`;
+        const MODEL_NAME = "llama-3.3-70b-versatile";
+        const API_KEY = "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";
+        const MODEL_URL = "https://api.groq.com/openai/v1/chat/completions";
         
         const STAT_CONFIG = {
             knowledge: { name: 'Knowledge', icon: 'fa-brain', color: '#3b82f6', ranks: ['Unlearned', 'Scholarly', 'Mighty', 'Encyclopedia', 'Erudite'] },
@@ -557,36 +557,37 @@
     const input = inputField.value.trim();
     if (!input) return alert("Please describe a task first!");
 
-   
+    // Validate key
+   if (!API_KEY || API_KEY === "PASTE_YOUR_GROQ_KEY_HERE") {
+        return alert("Please set your Groq API_KEY in index.html!");
+    }
 
     showP5Loader("ANALYZING METAVERSE COGNITION...");
 
     try {
         const response = await fetch(MODEL_URL, {
             method: "POST",
-            headers: 
-            {
-                 "Content-Type": "application/json",
-                 "x-goog-api-key": API_KEY
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${API_KEY}`
             },
             body: JSON.stringify({
-                contents: [
+                model: MODEL_NAME,
+                temperature: 0.1,
+                response_format: { type: "json_object" },
+                messages: [
                     {
-                        parts: [
-                            {
-                                text: `You are an AI that strictly evaluates tasks for a Persona 5 tracker.
-                                Evaluate this user task: "${input}"
-                                Return a valid JSON object matching this exact format:
-                                {"taskName": "string", "boosts": {"knowledge": 0, "charm": 0, "proficiency": 0, "guts": 0, "kindness": 0}}
-                                Assign integer boost values between 1 and 3 only for stats that fit the task, and 0 for others. Do not include markdown formatting or prose.`
-                            }
-                        ]
+                        role: "system",
+                        content: "You are an AI that strictly evaluates tasks for a Persona 5 tracker. Reply with a valid JSON object only, no markdown or prose."
+                    },
+                    {
+                        role: "user",
+                        content: `Evaluate this user task: "${input}"
+Return a JSON object in this exact format:
+{"taskName": "string", "boosts": {"knowledge": 0, "charm": 0, "proficiency": 0, "guts": 0, "kindness": 0}}
+Assign integer boost values between 1 and 3 only for stats that fit the task, and 0 for others.`
                     }
-                ],
-                generationConfig: {
-                    temperature: 0.1,
-                    responseMimeType: "application/json"
-                }
+                ]
             })
         });
 
@@ -596,8 +597,8 @@
             throw new Error(data.error.message || JSON.stringify(data.error));
         }
 
-        // Extract response text from Google AI Studio response format
-        let rawContent = data.candidates[0].content.parts[0].text.trim();
+        // Extract response text from Groq (OpenAI-style) response
+        let rawContent = data.choices[0].message.content.trim();
         
         let parsed;
         try {

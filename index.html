@@ -401,7 +401,7 @@
                 authBtn.classList.replace('border-blue-600', 'border-green-500');
                 authBtn.classList.replace('hover:bg-blue-600', 'hover:bg-green-600');
                 
-                showP5Loader("SYNCING COGNITIVE DATA...");
+                showP5Loader();
                 db.collection('users').doc(user.uid).get().then(doc => {
                     if (doc.exists) {
                         state = doc.data();
@@ -623,7 +623,7 @@ setInterval(updateWeather, 30 * 60 * 1000);
         return alert("Please set your Groq API_KEY in index.html!");
     }
 
-    showP5Loader("ANALYZING METAVERSE COGNITION...");
+    showP5Loader();
 
     try {
         const response = await fetch(MODEL_URL, {

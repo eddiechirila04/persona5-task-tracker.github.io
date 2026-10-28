@@ -552,6 +552,57 @@
             });
         }
 
+// ---- Weather (Open-Meteo) ----
+const WEATHER_LAT = 53.3498;   // Dublin
+const WEATHER_LON = -6.2603;
+const WEATHER_URL =
+    `https://api.open-meteo.com/v1/forecast?latitude=${WEATHER_LAT}&longitude=${WEATHER_LON}` +
+    `&current=weather_code,is_day&timezone=auto`;
+
+function pickWeather(code, isDay) {
+    if (code === 0 || code === 1)
+        return isDay
+            ? { icon: "fa-sun",  color: "text-yellow-300", label: "SUNNY" }
+            : { icon: "fa-moon", color: "text-indigo-200", label: "CLEAR" };
+    if (code === 2)
+        return { icon: isDay ? "fa-cloud-sun" : "fa-cloud-moon", color: "text-yellow-200", label: "PARTLY CLOUDY" };
+    if (code === 3)
+        return { icon: "fa-cloud", color: "text-gray-400", label: "CLOUDY" };
+    if (code === 45 || code === 48)
+        return { icon: "fa-smog", color: "text-gray-400", label: "FOGGY" };
+    if (code >= 51 && code <= 57)
+        return { icon: "fa-cloud-rain", color: "text-blue-300", label: "DRIZZLE" };
+    if (code === 80 || code === 81)
+        return { icon: isDay ? "fa-cloud-sun-rain" : "fa-cloud-rain", color: "text-sky-400", label: "SHOWERS" };
+    if (code === 65 || code === 82 || code === 66 || code === 67)
+        return { icon: "fa-cloud-showers-heavy", color: "text-blue-500", label: "HEAVY RAIN" };
+    if (code >= 61 && code <= 64)
+        return { icon: "fa-cloud-rain", color: "text-blue-400", label: "RAINY" };
+    if ((code >= 71 && code <= 77) || code === 85 || code === 86)
+        return { icon: "fa-snowflake", color: "text-sky-200", label: "SNOW" };
+    if (code >= 95)
+        return { icon: "fa-cloud-bolt", color: "text-purple-400", label: "STORMY" };
+    return { icon: "fa-cloud", color: "text-gray-400", label: "CLOUDY" };
+}
+
+async function updateWeather() {
+    const el = document.getElementById("weather-display");
+    if (!el) return;
+    try {
+        const res = await fetch(WEATHER_URL);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        const w = pickWeather(data.current.weather_code, data.current.is_day === 1);
+        el.innerHTML = `<i class="fa-solid ${w.icon} ${w.color}"></i>
+                        <span class="hidden sm:inline">${w.label}</span>`;
+    } catch (err) {
+        console.warn("Weather update failed:", err);
+    }
+}
+
+window.addEventListener("load", updateWeather);
+setInterval(updateWeather, 30 * 60 * 1000);
+
  async function evaluateTask() {
     const inputField = document.getElementById('task-input');
     const input = inputField.value.trim();
